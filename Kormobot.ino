@@ -13,7 +13,8 @@ const unsigned long SHORT_WAIT = 5000;
 const byte ANGLE_OPEN = 94;
 const byte ANGLE_CLOSED = 4;
 const unsigned long MILLIS_DECOUNT = 1200000;
-const unsigned int MAX_FOOD = 12;
+const unsigned int MAX_FOOD = 20;
+const unsigned int MAX_FOOD_RELAX = 4;
 const unsigned int LOTS_OF_FOOD = 3;
 const unsigned int A_BIT_OF_FOOD = 1;
 
@@ -41,6 +42,7 @@ void loop()
 
     if (IsOverFeed())
     {
+        isEatTime = !isEatTime;
         delay(LONG_WAIT);
         return;
     }
@@ -77,7 +79,7 @@ void loop()
 
 bool IsOverFeed()
 {
-    return foodCounter > MAX_FOOD;
+    return foodCounter > isEatTime ? MAX_FOOD : MAX_FOOD_RELAX;
 }
 
 void ComputeTimeFromLastCountDecrease()
