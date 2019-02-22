@@ -5,57 +5,123 @@
 #define PIRMS_PIN 3
 #define BUTTN_PIN 2
 
-const int OPEN_DELAY = 700;
-const byte ANGLE_OPEN = 94;
-const byte ANGLE_CLOSED = 4;
+//CONSTANTS
+const unsigned int SERIAL_SPEED = 9600;
+const unsigned int OPEN_DELAY = 700;
+const unsigned int LONG_WAIT = 1200000;
+const unsigned int SHORT_WAIT = 5000;
+const unsigned byte ANGLE_OPEN = 94;
+const unsigned byte ANGLE_CLOSED = 4;
+const unsigned long MILLIS_DECOUNT = 1200000;
+const unsigned int MAX_FOOD = 12;
+const unsigned int LOTS_OF_FOOD = 3;
+const unsigned int A_BIT_OF_FOOD = 1;
 
 Servo myservo;
 
+//VARIABLES
+unsigned long lastMilliseconds = 0;
+byte foodCounter = 0;
+bool isMoveDetected = false;
+
 void setup()
 {
-    Serial.begin (9600);
+    Serial.begin(SERIAL_SPEED);
     pinMode(IROBS_PIN, INPUT);
     pinMode(PIRMS_PIN, INPUT);
     pinMode(BUTTN_PIN, INPUT);
     myservo.attach(SERVO_PIN);
-    myservo.write(0);
+    myservo.write(ANGLE_CLOSED);
 }
-
-
 
 void loop() 
 {
-
-    if (digitalRead(BUTTN_PIN) == HIGH) 
-    {
-        ThrowSomeFood(3);
-    }
+    ComputeTimeFromLastCountDecrease();
     
+    if (IsOverFeed())
+    {
+        delay(LONG_WAIT);
+        return;
+    }
+
+    if (CheckIR())
+    {
+        moveDetected = true;
+        delay(SHORT_WAIT);
+        return;
+    }
+
     CheckMotion();
-    CheckIR();
+    if(isMoveDetected)
+    {
+        isMoveDetected = false;
+        ThrowSomeFood(LOTS_OF_FOOD);
+        delay(SHORT_WAIT);
+        return;
+    }
+
+    if(CheckManualFeedButton())
+    {
+        ThrowSomeFood(A_BIT_OF_FOOD);
+        return;
+    }
+    else
+    {
+        delay(SHORT_WAIT);
+    }
 
     Serial.println("++++++++++++++++++++");
-
-    
-    delay(200);
+    delay(100);
 }
 
-void CheckIR()
+bool IsOverFeed()
+{
+    return foodCounter > MAX_FOOD;
+}
+
+void ComputeTimeFromLastCountDecrease()
+{
+    unsigned long currentMilliseconds = millis();
+
+    // 1st condition is a dirty solution for long millis rollover
+    if ((currentMilliseconds < lastMilliseconds) || (currentMilliseconds - lastMilliseconds >= MILLIS_DECOUNT))
+    {
+        if (foodCounter > 0)
+        {
+            foodCounter--;
+        }
+        
+        lastMilliseconds = currentMilliseconds;
+    }
+}
+
+bool CheckManualFeedButton()
+{
+    return (digitalRead(BUTTN_PIN) == HIGH)
+}
+
+bool CheckIR()
 {
     int val = digitalRead(IROBS_PIN); 
     if (val == LOW)
     {
         Serial.println("Obstacle detected");
+        return true;
     }
+
+    return false;
 }
 
-void CheckMotion()
+bool CheckMotion()
 {
     int val = digitalRead(PIRMS_PIN); 
     if (val != LOW)
     {
         Serial.println("Motion detected");
+        return true;
     }
+
+    return false;
 }
 
 void ThrowSomeFood(int times)
