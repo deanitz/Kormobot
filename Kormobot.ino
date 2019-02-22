@@ -8,10 +8,10 @@
 //CONSTANTS
 const unsigned int SERIAL_SPEED = 9600;
 const unsigned int OPEN_DELAY = 700;
-const unsigned int LONG_WAIT = 1200000;
-const unsigned int SHORT_WAIT = 5000;
-const unsigned byte ANGLE_OPEN = 94;
-const unsigned byte ANGLE_CLOSED = 4;
+const unsigned long LONG_WAIT = 1200000;
+const unsigned long SHORT_WAIT = 5000;
+const byte ANGLE_OPEN = 94;
+const byte ANGLE_CLOSED = 4;
 const unsigned long MILLIS_DECOUNT = 1200000;
 const unsigned int MAX_FOOD = 12;
 const unsigned int LOTS_OF_FOOD = 3;
@@ -23,6 +23,7 @@ Servo myservo;
 unsigned long lastMilliseconds = 0;
 byte foodCounter = 0;
 bool isMoveDetected = false;
+bool isEatTime = true;
 
 void setup()
 {
@@ -37,7 +38,7 @@ void setup()
 void loop() 
 {
     ComputeTimeFromLastCountDecrease();
-    
+
     if (IsOverFeed())
     {
         delay(LONG_WAIT);
@@ -46,7 +47,7 @@ void loop()
 
     if (CheckIR())
     {
-        moveDetected = true;
+        isMoveDetected = true;
         delay(SHORT_WAIT);
         return;
     }
@@ -97,7 +98,7 @@ void ComputeTimeFromLastCountDecrease()
 
 bool CheckManualFeedButton()
 {
-    return (digitalRead(BUTTN_PIN) == HIGH)
+    return (digitalRead(BUTTN_PIN) == HIGH);
 }
 
 bool CheckIR()
