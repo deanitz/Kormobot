@@ -1,5 +1,6 @@
 #include <Servo.h>
 
+#define BTLED_PIN 13
 #define SERVO_PIN 9
 #define IROBS_PIN 8
 #define PIRMS_PIN 3
@@ -8,11 +9,11 @@
 //CONSTANTS
 const unsigned int SERIAL_SPEED = 9600;
 const unsigned int OPEN_DELAY = 700;
-const unsigned long LONG_WAIT = 1200000;
-const unsigned long SHORT_WAIT = 5000;
+const unsigned long LONG_WAIT = 5000; //1200000;
+const unsigned long SHORT_WAIT = 2000;
 const byte ANGLE_OPEN = 94;
 const byte ANGLE_CLOSED = 4;
-const unsigned long MILLIS_DECOUNT = 1200000;
+const unsigned long MILLIS_DECOUNT = 5000;//1200000;
 const unsigned int MAX_FOOD = 20;
 const unsigned int MAX_FOOD_RELAX = 4;
 const unsigned int LOTS_OF_FOOD = 3;
@@ -22,13 +23,15 @@ Servo myservo;
 
 //VARIABLES
 unsigned long lastMilliseconds = 0;
-byte foodCounter = 0;
+byte foodCounter = 1;
 bool isMoveDetected = false;
 bool isEatTime = true;
+bool switchFeedMode = false;
 
 void setup()
 {
     Serial.begin(SERIAL_SPEED);
+    pinMode(BTLED_PIN, OUTPUT);
     pinMode(IROBS_PIN, INPUT);
     pinMode(PIRMS_PIN, INPUT);
     pinMode(BUTTN_PIN, INPUT);
@@ -38,13 +41,35 @@ void setup()
 
 void loop() 
 {
+    if(CheckManualFeedButton())
+    {
+        ThrowSomeFood(A_BIT_OF_FOOD, true);
+        return;
+    }
+
     ComputeTimeFromLastCountDecrease();
 
     if (IsOverFeed())
     {
-        isEatTime = !isEatTime;
+        switchFeedMode = true;
+        for(int i = 0; i < 10; i++)
+        {
+            digitalWrite(BTLED_PIN, HIGH);
+            delay(50);
+            digitalWrite(BTLED_PIN, LOW);
+            delay(50);
+        }
+        Serial.println("long wait");
         delay(LONG_WAIT);
         return;
+    }
+
+    if(switchFeedMode)
+    {
+        isEatTime = !isEatTime;
+        switchFeedMode = false;
+        Serial.print("isEatTime ");
+        Serial.println(isEatTime);
     }
 
     if (CheckIR())
@@ -58,28 +83,21 @@ void loop()
     if(isMoveDetected)
     {
         isMoveDetected = false;
-        ThrowSomeFood(LOTS_OF_FOOD);
+        ThrowSomeFood(LOTS_OF_FOOD, false);
         delay(SHORT_WAIT);
         return;
     }
 
-    if(CheckManualFeedButton())
+    if(foodCounter <= 0)
     {
-        ThrowSomeFood(A_BIT_OF_FOOD);
-        return;
+        foodCounter = 0;
+        ThrowSomeFood(LOTS_OF_FOOD, false);
     }
-    else
-    {
-        delay(SHORT_WAIT);
-    }
-
-    Serial.println("++++++++++++++++++++");
-    delay(100);
 }
 
 bool IsOverFeed()
 {
-    return foodCounter > isEatTime ? MAX_FOOD : MAX_FOOD_RELAX;
+    return foodCounter > (isEatTime ? MAX_FOOD : MAX_FOOD_RELAX);
 }
 
 void ComputeTimeFromLastCountDecrease()
@@ -96,6 +114,7 @@ void ComputeTimeFromLastCountDecrease()
         
         lastMilliseconds = currentMilliseconds;
     }
+    Serial.println(foodCounter);
 }
 
 bool CheckManualFeedButton()
@@ -108,6 +127,13 @@ bool CheckIR()
     int val = digitalRead(IROBS_PIN); 
     if (val == LOW)
     {
+        for(int i = 0; i < 1; i++)
+        {
+            digitalWrite(BTLED_PIN, HIGH);
+            delay(50);
+            digitalWrite(BTLED_PIN, LOW);
+            delay(50);
+        }
         Serial.println("Obstacle detected");
         return true;
     }
@@ -115,36 +141,59 @@ bool CheckIR()
     return false;
 }
 
-bool CheckMotion()
+void CheckMotion()
 {
     int val = digitalRead(PIRMS_PIN); 
     if (val != LOW)
     {
+        for(int i = 0; i < 3; i++)
+        {
+            digitalWrite(BTLED_PIN, HIGH);
+            delay(50);
+            digitalWrite(BTLED_PIN, LOW);
+            delay(50);
+        }
         Serial.println("Motion detected");
-        return true;
+        isMoveDetected = true;
     }
-
-    return false;
 }
 
-void ThrowSomeFood(int times)
+void ThrowSomeFood(int times, bool manual)
 {
     if (times <= 0)
         return;
 
+    myservo.attach(SERVO_PIN);
+
+    for(int i = 0; i < 3; i++)
+    {
+        digitalWrite(BTLED_PIN, HIGH);
+        delay(100);
+        digitalWrite(BTLED_PIN, LOW);
+        delay(50);
+    }
+
     while (times > 0)
     {
-        myservo.write(ANGLE_OPEN);
-        Serial.println("open");
+       // myservo.write(ANGLE_OPEN);
+        //Serial.println("open");
 
         delay(OPEN_DELAY);
 
-        myservo.write(ANGLE_CLOSED);
-        Serial.println("closed");
+       // myservo.write(ANGLE_CLOSED);
+        //Serial.println("closed");
 
         delay(500);
 
         times--;
+
+        if(!manual)
+        {
+            foodCounter++;
+        }
+        
     }
+
+    myservo.detach();
     
 }
