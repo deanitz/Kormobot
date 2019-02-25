@@ -10,8 +10,11 @@
 #define BUTTN_PIN 2
 
 //CONSTANTS
-const unsigned long MILLIS_DECOUNT = 5000;//1200000;
-const unsigned long LONG_WAIT = 5000; //1200000;
+const unsigned long MILLIS_DECOUNT = 1200000; //5000;//
+const unsigned long MILLIS_LED = 5000; // 2000; //
+const unsigned long MILLIS_LONG_NO_FEED = 14400000; // 20000; //
+
+const unsigned long LONG_WAIT = 1200000; // 5000; // 
 const unsigned long SHORT_WAIT = 2000;
 
 const byte ANGLE_OPEN = 94;
@@ -28,6 +31,8 @@ Servo myservo;
 
 //VARIABLES
 unsigned long lastMilliseconds = 0;
+unsigned long lastLedIndicateMilliseconds = 0;
+unsigned long lastFeed = 0;
 byte foodCounter = 1;
 bool isMoveDetected = false;
 bool isEatTime = true;
@@ -99,9 +104,17 @@ void loop()
         return;
     }
 
-    if(foodCounter <= 0)
+    FeedIfLongNoFeed();
+}
+
+void FeedIfLongNoFeed()
+{
+    unsigned long currentMilliseconds = millis();
+    if ((currentMilliseconds < lastFeed) || (currentMilliseconds - lastFeed >= MILLIS_LONG_NO_FEED))
     {
-        foodCounter = 0;
+#ifdef DEBUG
+        Serial.println("Long No Feed!");
+#endif 
         ThrowSomeFood(LOTS_OF_FOOD, false);
     }
 }
@@ -131,25 +144,32 @@ void ComputeTimeFromLastCountDecrease()
 
 void IndicateFoodCount()
 {
-    digitalWrite(LED01_PIN, LOW);
-
-    if ((foodCounter > LOTS_OF_FOOD) && (foodCounter < (MAX_FOOD / 2)))
+    unsigned long currentMilliseconds = millis();
+    if ((currentMilliseconds < lastLedIndicateMilliseconds) || (currentMilliseconds - lastLedIndicateMilliseconds >= MILLIS_LED))
     {
-        BlinkLed(LED01_PIN, 1, 50);
-    }
-    else if (foodCounter >= (MAX_FOOD / 2))
-    {
-        BlinkLed(LED01_PIN, 3, 50);
-    }
-    else if (foodCounter >= MAX_FOOD)
-    {
-       digitalWrite(LED01_PIN, HIGH);
-    }
+        lastLedIndicateMilliseconds = currentMilliseconds;
+        if (IsOverFeed())
+        {
+            digitalWrite(LED01_PIN, HIGH);
+        }
+        else if (foodCounter >= (MAX_FOOD / 2))
+        {
+            BlinkLed(LED01_PIN, 3, 50);
+        }
+        else if ((foodCounter > LOTS_OF_FOOD) && (foodCounter < (MAX_FOOD / 2)))
+        {
+            BlinkLed(LED01_PIN, 1, 50);
+        }
+        else
+        {
+            digitalWrite(LED01_PIN, LOW);
+        }
 
 #ifdef DEBUG
-    Serial.println(foodCounter);
+         Serial.println(foodCounter);
 #endif 
-    
+
+    }
 }
 
 bool IsManualFeedButtonDown()
@@ -199,10 +219,10 @@ void ThrowSomeFood(int times, bool manual)
     while (times > 0)
     {
         BlinkLed(BTLED_PIN, 1, 100);
-        //myservo.write(ANGLE_OPEN);
+        myservo.write(ANGLE_OPEN);
         delay(OPEN_DELAY);
 
-        //myservo.write(ANGLE_CLOSED);
+        myservo.write(ANGLE_CLOSED);
         BlinkLed(BTLED_PIN, 1, 100);
         delay(300);
 
@@ -216,6 +236,7 @@ void ThrowSomeFood(int times, bool manual)
     }
 
     myservo.detach();
+    lastFeed = millis();
     
 }
 
