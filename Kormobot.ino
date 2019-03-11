@@ -1,6 +1,6 @@
 #include <Servo.h>
 
-#define DEBUG true
+#define DEBUG false
 
 #define BTLED_PIN 13
 #define LED01_PIN 4
@@ -11,32 +11,31 @@
 
 //CONSTANTS
 
-#ifdef DEBUG
-const unsigned long MILLIS_LED = 2000;
-const unsigned long MILLIS_LONG_NO_FEED = 20000;
-const unsigned long MOVEMENT_THRESHOLD = 5000;
-const unsigned long DECREASE_FOOD_THRESHOLD = 5000;
-#else
-const unsigned long MILLIS_LED = 5000;
-const unsigned long MILLIS_LONG_NO_FEED = 1800000; //30 minutes
+// const unsigned long MILLIS_LED = 5000;
+// const unsigned long MILLIS_LONG_NO_FEED = 20000;
+// const unsigned long MILLIS_TOO_MUCH_NO_FEED = 40000;
+// const unsigned long MOVEMENT_THRESHOLD = 5000;
+// const unsigned long DECREASE_FOOD_THRESHOLD = 5000;
+
+const unsigned long MILLIS_LED = 20000;
+const unsigned long MILLIS_LONG_NO_FEED = 3600000; //1 hour
+const unsigned long MILLIS_TOO_MUCH_NO_FEED = 14400000; //4 hrs
 const unsigned long MOVEMENT_THRESHOLD = 10000;
-const unsigned long DECREASE_FOOD_THRESHOLD = 20000;
-#endif 
-
-
+const unsigned long DECREASE_FOOD_THRESHOLD = 30000;
 
 const byte ANGLE_OPEN = 94;
 const byte ANGLE_CLOSED = 4;
 
 const unsigned int SERIAL_SPEED = 9600;
 const unsigned int OPEN_DELAY = 700;
-const unsigned int MAX_FOOD = 20;
+const unsigned int MAX_FOOD = 10;
 const unsigned int LOTS_OF_FOOD = 2;
 const unsigned int A_BIT_OF_FOOD = 1;
 
 Servo myservo;
 
 //VARIABLES
+
 unsigned long lastMilliseconds = 0;
 unsigned long lastLedIndicateMilliseconds = 0;
 unsigned long lastFeed = 0;
@@ -92,13 +91,23 @@ void DecreaseFoodCounter()
 if ((currentMilliseconds < lastFoodCounterDecreased) || (currentMilliseconds - lastFoodCounterDecreased >= DECREASE_FOOD_THRESHOLD))
     {
 #ifdef DEBUG
+        Serial.print("currentMilliseconds: ");
+        Serial.println(currentMilliseconds);
+
+        Serial.print("lastFoodCounterDecreased: ");
+        Serial.println(lastFoodCounterDecreased);
+
         Serial.println("DecreaseFoodCounter!");
 #endif 
         BlinkLed(BTLED_PIN, 1, 50);
         BlinkLed(BTLED_PIN, 1, 200);
         BlinkLed(BTLED_PIN, 2, 50);
 
-        foodCounter--;
+        if (foodCounter > 0)
+        {
+            foodCounter--;
+        }
+        
         lastFoodCounterDecreased = currentMilliseconds;
     }
 }
@@ -114,6 +123,10 @@ void FeedByTime()
 #endif 
         ThrowSomeFood(LOTS_OF_FOOD, false);
     }
+    else if ((currentMilliseconds - lastFeed >= MILLIS_TOO_MUCH_NO_FEED) && foodCounter > MAX_FOOD)
+    {
+        foodCounter -= 2;
+    }
 }
 
 void IndicateFoodCount()
@@ -122,7 +135,7 @@ void IndicateFoodCount()
     if ((currentMilliseconds < lastLedIndicateMilliseconds) || (currentMilliseconds - lastLedIndicateMilliseconds >= MILLIS_LED))
     {
         lastLedIndicateMilliseconds = currentMilliseconds;
-        if (foodCounter > MAX_FOOD)
+        if (foodCounter >= MAX_FOOD)
         {
             digitalWrite(LED01_PIN, HIGH);
         }
