@@ -10,10 +10,19 @@
 #define BUTTN_PIN 2
 
 //CONSTANTS
-const unsigned long MILLIS_LED = 5000; // 2000; //
-const unsigned long MILLIS_LONG_NO_FEED = 1800000; // 20000; //30 minutes
+
+#ifdef DEBUG
+const unsigned long MILLIS_LED = 2000;
+const unsigned long MILLIS_LONG_NO_FEED = 20000;
+const unsigned long MOVEMENT_THRESHOLD = 5000;
+const unsigned long DECREASE_FOOD_THRESHOLD = 5000;
+#else
+const unsigned long MILLIS_LED = 5000;
+const unsigned long MILLIS_LONG_NO_FEED = 1800000; //30 minutes
 const unsigned long MOVEMENT_THRESHOLD = 10000;
 const unsigned long DECREASE_FOOD_THRESHOLD = 20000;
+#endif 
+
 
 
 const byte ANGLE_OPEN = 94;
@@ -58,6 +67,8 @@ void setup()
 
 void loop() 
 {
+    IndicateFoodCount();
+
     if(IsManualFeedButtonDown())
     {
         ThrowSomeFood(A_BIT_OF_FOOD, true);
@@ -83,6 +94,10 @@ if ((currentMilliseconds < lastFoodCounterDecreased) || (currentMilliseconds - l
 #ifdef DEBUG
         Serial.println("DecreaseFoodCounter!");
 #endif 
+        BlinkLed(BTLED_PIN, 1, 50);
+        BlinkLed(BTLED_PIN, 1, 200);
+        BlinkLed(BTLED_PIN, 2, 50);
+
         foodCounter--;
         lastFoodCounterDecreased = currentMilliseconds;
     }
@@ -91,14 +106,14 @@ if ((currentMilliseconds < lastFoodCounterDecreased) || (currentMilliseconds - l
 void FeedByTime()
 {
     unsigned long currentMilliseconds = millis();
-    if ((currentMilliseconds < lastFeed) || (currentMilliseconds - lastFeed >= MILLIS_LONG_NO_FEED))
+    if (((currentMilliseconds < lastFeed) || (currentMilliseconds - lastFeed >= MILLIS_LONG_NO_FEED))
+        && foodCounter < MAX_FOOD)
     {
 #ifdef DEBUG
         Serial.println("FeedByTime!");
 #endif 
         ThrowSomeFood(LOTS_OF_FOOD, false);
     }
-    IndicateFoodCount();
 }
 
 void IndicateFoodCount()
