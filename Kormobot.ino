@@ -10,12 +10,11 @@
 #define BUTTN_PIN 2
 
 //CONSTANTS
-const unsigned long MILLIS_DECOUNT = 1200000; //5000;//
 const unsigned long MILLIS_LED = 5000; // 2000; //
-const unsigned long MILLIS_LONG_NO_FEED = 14400000; // 20000; //
+const unsigned long MILLIS_LONG_NO_FEED = 1800000; // 20000; //30 minutes
+const unsigned long MOVEMENT_THRESHOLD = 10000;
+const unsigned long DECREASE_FOOD_THRESHOLD = 20000;
 
-const unsigned long LONG_WAIT = 1200000; // 5000; // 
-const unsigned long SHORT_WAIT = 2000;
 
 const byte ANGLE_OPEN = 94;
 const byte ANGLE_CLOSED = 4;
@@ -23,8 +22,7 @@ const byte ANGLE_CLOSED = 4;
 const unsigned int SERIAL_SPEED = 9600;
 const unsigned int OPEN_DELAY = 700;
 const unsigned int MAX_FOOD = 20;
-const unsigned int MAX_FOOD_RELAX = 4;
-const unsigned int LOTS_OF_FOOD = 3;
+const unsigned int LOTS_OF_FOOD = 2;
 const unsigned int A_BIT_OF_FOOD = 1;
 
 Servo myservo;
@@ -33,10 +31,12 @@ Servo myservo;
 unsigned long lastMilliseconds = 0;
 unsigned long lastLedIndicateMilliseconds = 0;
 unsigned long lastFeed = 0;
+unsigned long lastMovementDetected = 0;
+unsigned long lastObstacleDetected = 0;
+unsigned long lastFoodCounterDecreased = 0;
+unsigned long lastMoveEnded = 0;
+
 byte foodCounter = 1;
-bool isMoveDetected = false;
-bool isEatTime = true;
-bool switchFeedMode = false;
 
 void setup()
 {
@@ -52,6 +52,8 @@ void setup()
     pinMode(BUTTN_PIN, INPUT);
     myservo.attach(SERVO_PIN);
     myservo.write(ANGLE_CLOSED);
+
+    delay(2000);
 }
 
 void loop() 
@@ -62,83 +64,40 @@ void loop()
         return;
     }
 
-    ComputeTimeFromLastCountDecrease();
-
-    if (IsOverFeed())
-    {
-        switchFeedMode = true;
-        BlinkLed(BTLED_PIN, 7, 50);
-
-#ifdef DEBUG
-        Serial.println("long wait");
-#endif
-        delay(LONG_WAIT);
-        return;
-    }
-
-    if(switchFeedMode)
-    {
-        isEatTime = !isEatTime;
-        switchFeedMode = false;
-
-#ifdef DEBUG
-        Serial.print("isEatTime ");
-        Serial.println(isEatTime);
-#endif   
-
-    }
-
-    if (CheckIR())
-    {
-        isMoveDetected = true;
-        delay(SHORT_WAIT);
-        return;
-    }
-
+    CheckIR();
     CheckMotion();
-    if(isMoveDetected)
+
+    if (IsMoveInProgress())
     {
-        isMoveDetected = false;
-        ThrowSomeFood(LOTS_OF_FOOD, false);
-        delay(SHORT_WAIT);
         return;
     }
 
-    FeedIfLongNoFeed();
+    FeedByTime();
 }
 
-void FeedIfLongNoFeed()
+void DecreaseFoodCounter()
+{
+    unsigned long currentMilliseconds = millis();
+if ((currentMilliseconds < lastFoodCounterDecreased) || (currentMilliseconds - lastFoodCounterDecreased >= DECREASE_FOOD_THRESHOLD))
+    {
+#ifdef DEBUG
+        Serial.println("DecreaseFoodCounter!");
+#endif 
+        foodCounter--;
+        lastFoodCounterDecreased = currentMilliseconds;
+    }
+}
+
+void FeedByTime()
 {
     unsigned long currentMilliseconds = millis();
     if ((currentMilliseconds < lastFeed) || (currentMilliseconds - lastFeed >= MILLIS_LONG_NO_FEED))
     {
 #ifdef DEBUG
-        Serial.println("Long No Feed!");
+        Serial.println("FeedByTime!");
 #endif 
         ThrowSomeFood(LOTS_OF_FOOD, false);
     }
-}
-
-bool IsOverFeed()
-{
-    return foodCounter > (isEatTime ? MAX_FOOD : MAX_FOOD_RELAX);
-}
-
-void ComputeTimeFromLastCountDecrease()
-{
-    unsigned long currentMilliseconds = millis();
-
-    // 1st condition is a dirty solution for long millis rollover
-    if ((currentMilliseconds < lastMilliseconds) || (currentMilliseconds - lastMilliseconds >= MILLIS_DECOUNT))
-    {
-        if (foodCounter > 0)
-        {
-            foodCounter--;
-        }
-        
-        lastMilliseconds = currentMilliseconds;
-    }
-
     IndicateFoodCount();
 }
 
@@ -148,17 +107,17 @@ void IndicateFoodCount()
     if ((currentMilliseconds < lastLedIndicateMilliseconds) || (currentMilliseconds - lastLedIndicateMilliseconds >= MILLIS_LED))
     {
         lastLedIndicateMilliseconds = currentMilliseconds;
-        if (IsOverFeed())
+        if (foodCounter > MAX_FOOD)
         {
             digitalWrite(LED01_PIN, HIGH);
         }
         else if (foodCounter >= (MAX_FOOD / 2))
         {
-            BlinkLed(LED01_PIN, 3, 50);
+            BlinkLed(LED01_PIN, 3, 100);
         }
         else if ((foodCounter > LOTS_OF_FOOD) && (foodCounter < (MAX_FOOD / 2)))
         {
-            BlinkLed(LED01_PIN, 1, 50);
+            BlinkLed(LED01_PIN, 1, 100);
         }
         else
         {
@@ -177,21 +136,33 @@ bool IsManualFeedButtonDown()
     return (digitalRead(BUTTN_PIN) == HIGH);
 }
 
-bool CheckIR()
+bool IsMoveInProgress()
+{
+    unsigned long currentMilliseconds = millis();
+    return (((currentMilliseconds - lastMovementDetected) < MOVEMENT_THRESHOLD) 
+            || ((currentMilliseconds - lastObstacleDetected) < MOVEMENT_THRESHOLD));
+}
+
+void SetMovementDetected()
+{
+    lastMovementDetected = millis();
+}
+
+void CheckIR()
 {
     int val = digitalRead(IROBS_PIN); 
     if (val == LOW)
     {
+        DecreaseFoodCounter();
         BlinkLed(BTLED_PIN, 1, 50);
 
 #ifdef DEBUG
         Serial.println("Obstacle detected");
 #endif 
 
-        return true;
+        SetMovementDetected();
+        lastObstacleDetected = millis();
     }
-
-    return false;
 }
 
 void CheckMotion()
@@ -205,7 +176,7 @@ void CheckMotion()
         Serial.println("Motion detected");
 #endif 
       
-        isMoveDetected = true;
+        SetMovementDetected();
     }
 }
 
