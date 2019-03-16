@@ -1,6 +1,6 @@
 #include <Servo.h>
 
-#define DEBUG false
+//#define DEBUG false
 
 #define BTLED_PIN 13
 #define LED01_PIN 4
@@ -183,6 +183,7 @@ void CheckIR()
     {
         DecreaseFoodCounter();
         BlinkLed(BTLED_PIN, 1, 50);
+        BlinkLed(BTLED_PIN, 1, 200);
 
 #ifdef DEBUG
         Serial.println("Obstacle detected");
