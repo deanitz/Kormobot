@@ -18,18 +18,18 @@
 // const unsigned long DECREASE_FOOD_THRESHOLD = 5000;
 
 const unsigned long MILLIS_LED = 20000;
-const unsigned long MILLIS_LONG_NO_FEED = 3600000; //1 hour
-const unsigned long MILLIS_TOO_MUCH_NO_FEED = 14400000; //4 hrs
+const unsigned long MILLIS_LONG_NO_FEED = 7200000; //2 hours
+const unsigned long MILLIS_TOO_MUCH_NO_FEED = 43200000; //12 hrs
 const unsigned long MOVEMENT_THRESHOLD = 10000;
-const unsigned long DECREASE_FOOD_THRESHOLD = 30000;
+const unsigned long DECREASE_FOOD_THRESHOLD = 40000;
 
 const byte ANGLE_OPEN = 94;
 const byte ANGLE_CLOSED = 4;
 
 const unsigned int SERIAL_SPEED = 9600;
 const unsigned int OPEN_DELAY = 700;
-const unsigned int MAX_FOOD = 10;
-const unsigned int LOTS_OF_FOOD = 2;
+const unsigned int MAX_FOOD = 4;
+const unsigned int LOTS_OF_FOOD = 1;
 const unsigned int A_BIT_OF_FOOD = 1;
 
 Servo myservo;
