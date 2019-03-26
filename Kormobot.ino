@@ -4,7 +4,8 @@
 
 #define BTLED_PIN 13
 #define LED01_PIN 4
-#define SERVO_PIN 9
+#define SERVM_PIN 9
+#define SERVS_PIN 7
 #define IROBS_PIN 8
 #define PIRMS_PIN 3
 #define BUTTN_PIN 2
@@ -25,14 +26,16 @@ const unsigned long DECREASE_FOOD_THRESHOLD = 40000;
 
 const byte ANGLE_OPEN = 94;
 const byte ANGLE_CLOSED = 4;
+const byte ANGLE_FULL = 160;
 
 const unsigned int SERIAL_SPEED = 9600;
 const unsigned int OPEN_DELAY = 700;
-const unsigned int MAX_FOOD = 4;
+const unsigned int MAX_FOOD = 2;
 const unsigned int LOTS_OF_FOOD = 1;
 const unsigned int A_BIT_OF_FOOD = 1;
 
-Servo myservo;
+Servo servoGate;
+Servo servoMixer;
 
 //VARIABLES
 
@@ -58,10 +61,16 @@ void setup()
     pinMode(IROBS_PIN, INPUT);
     pinMode(PIRMS_PIN, INPUT);
     pinMode(BUTTN_PIN, INPUT);
-    myservo.attach(SERVO_PIN);
-    myservo.write(ANGLE_CLOSED);
+    servoGate.attach(SERVM_PIN);
+    servoGate.write(ANGLE_CLOSED);
+
+    servoMixer.attach(SERVS_PIN);
+    servoMixer.write(ANGLE_CLOSED);
 
     delay(2000);
+
+    servoGate.detach();
+    servoMixer.detach();
 }
 
 void loop() 
@@ -88,7 +97,7 @@ void loop()
 void DecreaseFoodCounter()
 {
     unsigned long currentMilliseconds = millis();
-if ((currentMilliseconds < lastFoodCounterDecreased) || (currentMilliseconds - lastFoodCounterDecreased >= DECREASE_FOOD_THRESHOLD))
+    if ((currentMilliseconds < lastFoodCounterDecreased) || (currentMilliseconds - lastFoodCounterDecreased >= DECREASE_FOOD_THRESHOLD))
     {
 #ifdef DEBUG
         Serial.print("currentMilliseconds: ");
@@ -100,8 +109,8 @@ if ((currentMilliseconds < lastFoodCounterDecreased) || (currentMilliseconds - l
         Serial.println("DecreaseFoodCounter!");
 #endif 
         BlinkLed(BTLED_PIN, 1, 50);
-        BlinkLed(BTLED_PIN, 1, 200);
-        BlinkLed(BTLED_PIN, 2, 50);
+        BlinkLed(BTLED_PIN, 3, 200);
+        BlinkLed(BTLED_PIN, 1, 50);
 
         if (foodCounter > 0)
         {
@@ -214,15 +223,22 @@ void ThrowSomeFood(int times, bool manual)
     if (times <= 0)
         return;
 
-    myservo.attach(SERVO_PIN);
+    servoMixer.attach(SERVS_PIN);
+    servoGate.attach(SERVM_PIN);
 
     while (times > 0)
     {
-        BlinkLed(BTLED_PIN, 1, 100);
-        myservo.write(ANGLE_OPEN);
+        servoMixer.write(ANGLE_FULL);
+        delay(OPEN_DELAY);
+        servoMixer.write(ANGLE_CLOSED);
         delay(OPEN_DELAY);
 
-        myservo.write(ANGLE_CLOSED);
+
+        BlinkLed(BTLED_PIN, 1, 100);
+        servoGate.write(ANGLE_OPEN);
+        delay(OPEN_DELAY);
+
+        servoGate.write(ANGLE_CLOSED);
         BlinkLed(BTLED_PIN, 1, 100);
         delay(300);
 
@@ -235,7 +251,8 @@ void ThrowSomeFood(int times, bool manual)
         
     }
 
-    myservo.detach();
+    servoMixer.detach();
+    servoGate.detach();
     lastFeed = millis();
     
 }
